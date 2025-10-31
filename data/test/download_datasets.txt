@@ -1,0 +1,3 @@
+https://challenge.isic-archive.com/data/#milk10k 
+
+Baixe: Training Data, Training Ground Truth	e Test Data

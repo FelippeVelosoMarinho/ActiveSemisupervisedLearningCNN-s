@@ -1,0 +1,7 @@
+https://challenge.isic-archive.com/data/#milk10k 
+
+Baixe: Training Data, Training Ground Truth	e Test Data
+
+
+Dataset do Cachorro vs Gato: 
+https://www.kaggle.com/datasets/bhavikjikadara/dog-and-cat-classification-dataset

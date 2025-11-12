@@ -1,0 +1,122 @@
+% ASSL_paper.tex
+% Artigo descrevendo adaptação de aprendizado ativo semissupervisionado inspirada em arXiv:2303.08978v1
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{listings}
+\usepackage{enumitem}
+\usepackage{geometry}
+\geometry{margin=1in}
+
+\title{Active Semi-Supervised Learning for Convolutional Neural Networks: Methodology and Implementation}
+\author{(Documento gerado automaticamente para o repositório)}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Este trabalho descreve a metodologia de adaptação de um protocolo de aprendizado ativo semissupervisionado (ASSL) para redes neurais convolucionais, inspirada no trabalho de referência (arXiv:2303.08978v1). Nós apresentamos a formulação algorítmica, detalhes de implementação, mapeamento entre seções do paper e funções do código disponibilizado no repositório, medidas práticas para acelerar treinamento e experimentos sugeridos para validação.
+\end{abstract}
+
+\section{Introdução}
+Aprendizado semi-supervisionado combinado com seleção ativa promete reduzir drasticamente a necessidade de rótulos humanos e, quando bem implementado, diminuir o custo computacional por atingir a mesma acurácia. Baseamo-nos no design do paper de referência (arXiv:2303.08978v1) e adaptamos os componentes centrais para um pipeline prático em TensorFlow/Keras. O objetivo deste documento é fornecer a metodologia completa, decisões de engenharia para otimização e documentação do código.
+
+\section{Revisão do trabalho de referência}
+(Resumo curto do paper de referência.) O paper descreve uma estratégia para selecionar amostras informativas a partir de um conjunto não rotulado usando métricas de incerteza e inconsistência entre versões do modelo (por exemplo, weak / strong augmentations), aplicando pseudo-rotulagem com máscaras de confiança e atualizando métricas por amostra (EMA/UCB). Os componentes chave são:
+\begin{itemize}
+  \item operações de augmentação fracas/fortes para estabilizar pseudo-rótulos;
+  \item um critério de seleção ativa que combina incerteza e inconsistência por amostra;
+  \item mecanismos de agregação por amostra (EMA) e bandas superiores de confiança (UCB) para priorizar amostras a serem anotadas;
+  \item políticas adaptativas de threshold (tau) e agendamento do peso da perda não-supervisionada (lambda").
+\end{itemize}
+
+\section{Metodologia adaptada}
+A nossa implementação segue de perto os blocos do paper, com ajustes práticos:
+
+\subsection{Dados e pré-processamento}
+- Imagens são lidas via \texttt{tf.data} usando função robusta de decodificação/resize; a normalização é feita em ponto único (0..1).  
+- Dois pipelines: L (labelled) e U (unlabelled). U produz pares (weak, strong) por batch.
+- Para acelerar: usamos \texttt{num\\_parallel\_calls=tf.data.AUTOTUNE} e \texttt{prefetch}.
+
+\subsection{Modelo}
+- Uma CNN simples (3 blocos conv + flatten + dense) produz logits.
+- Para compatibilidade com \textit{mixed-precision} (ganhos em GPU), a saída final é forçada para \texttt{float32} a fim de evitar problemas numéricos na loss.
+
+\subsection{Perdas e passos de treinamento}
+- Passo supervisionado: cross-entropy clássica sobre L.
+- Passo não-rotulado: pseudo-rotulagem via predições da \textit{weak} (yhat) aplicadas na \textit{strong}; máscara por confiança (conf >= tau) e perda ponderada por \(\lambda_u\).
+- Métricas por amostra: pseudo-EL2N (incerteza) e simetrized KL (inconsistência entre weak/strong).
+- Atualização EMA por amostra para média e variância (usada em UCB).
+
+\subsection{Seleção ativa}
+- Seleção balanceada por classe: para cada classe, ordena amostras por produto das UCBs de incerteza e inconsistência e seleciona top-K de forma balanceada.
+- Remoção posterior das amostras selecionadas de U e inserção em L (simulação de anotação).
+
+\section{Mapeamento para o código}
+Abaixo descrevemos os pontos do paper e as funções/variáveis do notebook do repositório:
+\begin{itemize}
+  \item \texttt{build\_records\_from\_dir}: coleta arquivos e monta registros (sid, path, label).
+  \item \texttt{make\_L\_ds}, \texttt{make\_U\_ds}: pipelines \texttt{tf.data} para L e U.
+  \item \texttt{weak\_aug\_seq} / \texttt{strong\_aug\_seq}: augmentações weak/strong.
+  \item \texttt{train\_step\_supervised}: passo supervisionado (com \texttt{@tf.function}).
+  \item \texttt{train\_step\_unlabeled\_with\_masklog}: passo não rotulado (mantido fora do \texttt{@tf.function} quando modo debug ativo).
+  \item \texttt{pseudo\_el2n}, \texttt{sym\_kl}: métricas por amostra.
+  \item \texttt{ema\_update}, \texttt{ucb}: manutenção de EMA/UCB por sid.
+  \item \texttt{acquire\_topK\_balanced}: seleção ativa balanceada (implementada no notebook).
+\end{itemize}
+
+\section{Melhorias de desempenho implementadas}
+Nesta versão do repositório aplicamos duas mudanças não-invasivas:
+\begin{enumerate}
+  \item Ativação de \textit{mixed precision} (quando disponível) para acelerar computação em GPUs modernas.
+  \item Forçar a saída final do modelo para \texttt{float32} para garantir estabilidade na função de perda quando o resto do modelo estiver em float16.
+\end{enumerate}
+
+Essas alterações são economicamente vantajosas: Mixed-precision reduz tempo de treino e uso de memória, permitindo batches maiores por GPU.
+
+\section{Outras recomendações para reduzir lentidão}
+Além das mudanças aplicadas, recomendamos:
+\begin{itemize}
+  \item Aumentar o \texttt{batch} (BATCH) caso a GPU tenha memória disponível — maior throughput reduz overhead por step.
+  \item Usar \texttt{ds = ds.cache()} quando o dataset couber em memória (ou em disco) para evitar IO repetido durante múltiplas épocas.
+  \item Garantir \texttt{num\_parallel\_calls=tf.data.AUTOTUNE} e \texttt{prefetch} (já usados).
+  \item Evitar loops Python por amostra durante caminhos críticos (por exemplo, pontos que atualizam EMA dentro do loop de batches podem ser vetorizados). Se possível, coletar arrays numpy e aplicar operações vetorizadas sobre colunas inteiras.
+  \item Usar \texttt{tf.function} nas rotinas de treinamento quando o modo \texttt{DEBUG} estiver desativado; a função \texttt{train\_step\_unlabeled} pode ser decorada dinamicamente quando não há código Python dependente.
+  \item Utilizar profiling (TensorBoard profiler) para identificar gargalos: CPU vs IO vs GPU.
+\end{itemize}
+
+\section{Instruções para reproduzir e compilar}
+Compilar o PDF (PowerShell):
+\begin{verbatim}
+pdflatex -output-directory=doc doc\ASSL_paper.tex
+\end{verbatim}
+
+\section{Código e documentação (exemplos)}
+No repositório, as funções principais estão comentadas de acordo com as seções deste artigo. Abaixo há um trecho explicativo (documente o notebook com literais docstrings e comentários em cada função-chave no código):
+\begin{lstlisting}[language=Python]
+# Exemplo: descricao da funcao acquire_topK_balanced
+# Input: U_records (list of dict {sid,path}), K: int, class_names: list
+# Output: selected_sids (list of ints)
+# Objetivo: retornar K sids balanceados por classe, ordenados por score UCB(U)*UCB(I)
+\end{lstlisting}
+
+\section{Proposta de Experimentos}
+Sugerimos as seguintes experiências:
+\begin{enumerate}
+  \item Comparar tempo por época e acurácia entre baseline (treinamento totalmente supervisionado com L completo) e ASSL com diferentes políticas de K por rodada.
+  \item Ablation: medir impacto de usar apenas incerteza, apenas inconsistência, ou produto das UCBs na seleção ativa.
+  \item Medir ganhos de mixed-precision em diferentes GPUs (ex.: T4, V100, A100).
+\end{enumerate}
+
+\section{Conclusão}
+Este documento fornece um guia prático para reproduzir e estender a implementação ASSL presente no repositório. Aplicamos mudanças imediatas para acelerar treino (mixed precision) e listamos várias práticas recomendadas para reduzir latência e gasto computacional. Documentamos o mapeamento entre o paper de referência e as funções do notebook para facilitar replicação e publicação.
+
+\bibliographystyle{plain}
+\bibliography{}
+
+\end{document}

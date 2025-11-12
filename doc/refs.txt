@@ -1,0 +1,9 @@
+
+principal ref: Active Semi-Supervised Learning
+by Exploring Per-Sample Uncertainty and Consistency (UCB, EMA, FUnction Loss)
+
+ref: FixMatch: https://arxiv.org/pdf/2001.07685 (arquitetura de implementação do ASS)
+
+TODO: Alterar para o FixMatch com implementação original e entender onde tá demorando TANTO
+
+calculo da incerteza e invariância como fatores de seleção de amostras

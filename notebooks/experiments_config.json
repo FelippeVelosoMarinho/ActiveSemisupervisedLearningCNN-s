@@ -1,0 +1,9 @@
+[
+  { "dataset":"mnist", "task":"rotation",    "img_size":32, "subset":20000, "epochs_pretext":5, "epochs_probe":5, "batch_pretext":128, "batch_probe":256, "seed":42 },
+  { "dataset":"mnist", "task":"jigsaw",      "img_size":32, "subset":20000, "epochs_pretext":5, "epochs_probe":5, "batch_pretext":128, "batch_probe":256, "seed":42 },
+  { "dataset":"mnist", "task":"colorization","img_size":32, "subset":20000, "epochs_pretext":5, "epochs_probe":5, "batch_pretext":128, "batch_probe":256, "seed":42 },
+
+  { "dataset":"stl10", "task":"rotation",    "img_size":48, "subset":5000,  "epochs_pretext":5, "epochs_probe":5, "batch_pretext":128, "batch_probe":256, "seed":42 },
+  { "dataset":"stl10", "task":"jigsaw",      "img_size":48, "subset":5000,  "epochs_pretext":5, "epochs_probe":5, "batch_pretext":128, "batch_probe":256, "seed":42 },
+  { "dataset":"stl10", "task":"colorization","img_size":48, "subset":5000,  "epochs_pretext":5, "epochs_probe":5, "batch_pretext":128, "batch_probe":256, "seed":42 }
+]

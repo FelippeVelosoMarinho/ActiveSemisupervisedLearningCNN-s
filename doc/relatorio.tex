@@ -1,0 +1,122 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{hyperref}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{amsmath}
+\usepackage{setspace}
+\onehalfspacing
+
+\title{Relatório Experimental: Análise de Tarefas de Autoaprendizado Leve (Rotation, Jigsaw, Colorization) em MNIST e STL-10}
+\author{Felippe e Áquila}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introdução}
+
+O presente relatório tem como objetivo avaliar o desempenho de diferentes tarefas de \textit{autoaprendizado} (\textit{self-supervised learning}) aplicadas a redes convolucionais leves, utilizando os conjuntos de dados MNIST e STL-10. Foram comparadas três tarefas de pré-texto: \textbf{rotação}, \textbf{jigsaw} (quebra-cabeça) e \textbf{colorização}, as quais foram seguidas por um \textit{linear probe} para avaliar a qualidade das representações aprendidas.
+
+A motivação do estudo é compreender como tarefas de autoaprendizado simples podem gerar representações úteis com custo computacional reduzido, explorando o equilíbrio entre desempenho, complexidade e eficiência energética em redes leves.
+
+\section{Metodologia}
+
+\subsection{Arquitetura e Configuração}
+
+O modelo base empregado foi o \textit{SmallConvEncoder}, uma rede convolucional com três camadas de convolução seguidas de normalização em lote, ativação ReLU e \textit{pooling}, totalizando aproximadamente 110 mil parâmetros.
+
+Para as tarefas de pré-texto:
+\begin{itemize}
+    \item \textbf{Rotação}: o modelo foi treinado para prever o ângulo de rotação (0°, 90°, 180°, 270°);
+    \item \textbf{Jigsaw}: o modelo reconstruiu a posição correta de quatro quadrantes de uma imagem (2x2) a partir de 24 permutações possíveis;
+    \item \textbf{Colorização}: a rede aprendeu a reconstruir a imagem colorida (RGB) a partir de sua versão em escala de cinza, utilizando um decodificador adicional (\textit{ColorizationDecoder}) com cerca de 540 mil parâmetros.
+\end{itemize}
+
+Após o pré-treinamento, o encoder foi congelado e um classificador linear foi treinado (\textit{linear probe}) para avaliar a separabilidade linear das representações aprendidas.
+
+\subsection{Configurações Experimentais}
+
+Os experimentos foram conduzidos em CPU, com os seguintes parâmetros:
+\begin{itemize}
+    \item \textbf{MNIST}: 20.000 amostras, 32x32 pixels;
+    \item \textbf{STL-10}: 5.000 amostras, 48x48 pixels;
+    \item \textbf{Épocas}: 5 (pré-texto) + 5 (linear probe);
+    \item \textbf{Batchs}: 128 (pré-texto), 256 (linear probe);
+    \item \textbf{Seed}: 42.
+\end{itemize}
+
+\section{Resultados Experimentais}
+
+A Tabela~\ref{tab:resultados} apresenta os resultados consolidados para cada combinação de dataset e tarefa.
+
+\begin{table}[H]
+\centering
+\caption{Resumo dos resultados obtidos}
+\label{tab:resultados}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Dataset} & \textbf{Tarefa} & \textbf{Params} & \textbf{Acc. Final} & \textbf{Tempo Total (s)} \\
+\midrule
+MNIST & Rotação & 110k & 0.55 & 256.4 \\
+MNIST & Jigsaw & 113k & 0.68 & 267.1 \\
+MNIST & Colorização & 540k & \textbf{0.94} & 270.8 \\
+STL-10 & Rotação & 110k & 0.37 & 1020.9 \\
+STL-10 & Jigsaw & 113k & 0.29 & 302.7 \\
+STL-10 & Colorização & 540k & 0.35 & 315.4 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Análise dos Resultados}
+
+\paragraph{MNIST.}
+A tarefa de colorização apresentou o melhor desempenho (94,3\% de acurácia no \textit{linear probe}), seguida de jigsaw (68,2\%) e rotação (55,3\%). A perda MSE da colorização foi estável, convergindo rapidamente, o que indica aprendizado efetivo de representações visuais. O custo adicional do decodificador foi compensado pela melhora significativa no desempenho.
+
+\paragraph{STL-10.}
+Os resultados no STL-10 foram inferiores em todas as tarefas, sendo a rotação levemente superior (37,2\%). Isso se deve à maior complexidade do domínio e à limitação da capacidade do encoder. O baixo número de épocas e a resolução relativamente pequena (48x48) reduziram o poder de generalização.
+
+\paragraph{Eficiência Computacional.}
+O custo de treino foi moderado (entre 250 e 300 segundos por run no MNIST). O custo de colorização foi maior, mas proporcionalmente compensado pelo ganho de desempenho. O jigsaw se mostrou eficiente em custo e intermediário em desempenho, sendo uma boa alternativa de baixo custo para autoaprendizado leve.
+
+\section{Observações}
+
+\begin{itemize}
+    \item A \textbf{colorização} oferece gradientes mais ricos, permitindo aprendizado mais rápido e melhor generalização, mesmo em um encoder raso.
+    \item A \textbf{rotação} fornece um sinal simples e estável, mas limitado; funciona melhor em domínios com orientação global definida.
+    \item O \textbf{jigsaw 2x2} foi insuficiente para capturar estrutura semântica em imagens naturais; versões 3x3 são sugeridas.
+    \item O desempenho reduzido no STL-10 indica que o modelo requer \textbf{mais dados não rotulados} ou \textbf{arquitetura mais profunda} para aprendizado efetivo.
+\end{itemize}
+
+\section{Conclusão}
+
+Os experimentos demonstram que tarefas de autoaprendizado simples podem gerar representações úteis com custo computacional reduzido. A colorização destacou-se como o método mais eficaz, alcançando desempenho próximo de redes supervisionadas completas em MNIST. 
+
+Entretanto, os resultados também evidenciam que a eficácia dessas abordagens depende fortemente do domínio, da complexidade das imagens e da capacidade da arquitetura. Em cenários mais desafiadores como STL-10, torna-se necessário ampliar tanto o conjunto de dados quanto a profundidade da rede.
+
+\section{Próximos Passos}
+
+\begin{itemize}
+    \item Ampliar os experimentos para o \textbf{split ``train+unlabeled''} do STL-10;
+    \item Aumentar o número de épocas de pré-texto (ex.: 20) mantendo o probe curto (5);
+    \item Implementar \textbf{Jigsaw 3x3} com 30 permutações para maior desafio sem elevar muito o custo;
+    \item Incluir \textbf{augmentações} (\textit{RandomResizedCrop}, \textit{ColorJitter}, \textit{GaussianBlur});
+    \item Avaliar consumo energético estimado (CPU/GPU) e custo por acurácia para cada tarefa;
+    \item Comparar com uma rede supervisionada equivalente para quantificar o ganho de eficiência.
+\end{itemize}
+
+\section{Referências}
+
+\begin{itemize}
+    \item Gidaris, S., Singh, P., \& Komodakis, N. (2018). \textit{Unsupervised representation learning by predicting image rotations}. ICLR.
+    \item Noroozi, M., \& Favaro, P. (2016). \textit{Unsupervised learning of visual representations by solving jigsaw puzzles}. ECCV.
+    \item Zhang, R., Isola, P., \& Efros, A. A. (2016). \textit{Colorful image colorization}. ECCV.
+    \item Jing, L., \& Tian, Y. (2020). \textit{Self-supervised visual feature learning: A survey}. IEEE TPAMI.
+\end{itemize}
+
+\end{document}

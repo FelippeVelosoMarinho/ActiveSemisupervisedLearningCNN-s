@@ -1,5 +1,6 @@
 data/test/MILK10k_Test_Input/
 data/train/MILK10k_Training_Input/
+noebooks/data
 *.jpg
 *.csv
 *.zip

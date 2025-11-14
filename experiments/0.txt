@@ -1,0 +1,68 @@
+Aumento linear da acurácia assim como o esperado.
+
+C:\Users\felip\OneDrive\Documentos\GitHub\ActiveSemisupervisedLearningCNN-s\tf_env\Lib\site-packages\torch\utils\data\dataloader.py:668: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
+  warnings.warn(warn_msg)
+[ep 1] L_sup=2.1629  L_uns=0.0000  λ_u=0.33
+[ep 2] L_sup=1.8620  L_uns=1.7974  λ_u=0.67
+[ep 3] L_sup=2.0928  L_uns=0.7480  λ_u=1.00
+[eval] test_acc=0.1142  (round time 48.9s)
+[active] moved 300 from U->L  |  |L|=1300  |U|=58700
+
+== Round 2/5 ==
+[ep 1] L_sup=2.2158  L_uns=0.5094  λ_u=0.33
+[ep 2] L_sup=1.4772  L_uns=0.8484  λ_u=0.67
+[ep 3] L_sup=1.5959  L_uns=0.5605  λ_u=1.00
+[eval] test_acc=0.2222  (round time 48.2s)
+[active] moved 300 from U->L  |  |L|=1600  |U|=58400
+
+== Round 3/5 ==
+[ep 1] L_sup=1.3958  L_uns=0.5307  λ_u=0.33
+[ep 2] L_sup=1.0198  L_uns=0.6693  λ_u=0.67
+[ep 3] L_sup=1.0201  L_uns=0.3145  λ_u=1.00
+[eval] test_acc=0.3891  (round time 46.8s)
+[active] moved 300 from U->L  |  |L|=1900  |U|=58100
+
+== Round 4/5 ==
+[ep 1] L_sup=0.8108  L_uns=0.4281  λ_u=0.33
+[ep 2] L_sup=0.6987  L_uns=0.4611  λ_u=0.67
+[ep 3] L_sup=0.6908  L_uns=0.3328  λ_u=1.00
+[eval] test_acc=0.5457  (round time 43.6s)
+[active] moved 300 from U->L  |  |L|=2200  |U|=57800
+
+== Round 5/5 ==
+[ep 1] L_sup=0.5439  L_uns=0.4198  λ_u=0.33
+[ep 2] L_sup=0.4306  L_uns=0.4192  λ_u=0.67
+[ep 3] L_sup=0.4034  L_uns=0.2749  λ_u=1.00
+[eval] test_acc=0.7111  (round time 46.2s)
+[done] total secs: 346.1
+[
+  {
+    "round": 0,
+    "test_acc": 0.1142,
+    "L": 1300,
+    "U": 58700
+  },
+  {
+    "round": 1,
+    "test_acc": 0.2222,
+    "L": 1600,
+    "U": 58400
+  },
+  {
+    "test_acc": 0.3891,
+    "L": 1900,
+    "U": 58100
+  },
+  {
+    "round": 3,
+    "test_acc": 0.5457,
+    "L": 2200,
+    "U": 57800
+  },
+  {
+    "round": 4,
+    "test_acc": 0.7111,
+    "L": 2200,
+    "U": 57800
+  }
+]

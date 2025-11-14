@@ -1,0 +1,138 @@
+Experimento estranho onde a acurácia ficou diminuindo e aumentando de acordo com os rounds ( não aumentou linearmente)
+
+(tf_env) PS C:\Users\felip\OneDrive\Documentos\GitHub\ActiveSemisupervisedLearningCNN-s\notebooks> python run_assl.py --dataset mnist --img-size 32 --device cpu --labeled-init 1000 --rounds 8 --budget-per-round 300 --epochs-per-round 4 --tau 0.6 --temp-T 0.7
+== Config ==
+dataset: mnist
+data_dir: ./data
+img_size: 32
+device: cpu
+seed: 42
+labeled_init: 1000
+rounds: 8
+budget_per_round: 300
+epochs_per_round: 4
+lr: 0.001
+lambda_u_max: 1.0
+tau: 0.6
+temp_T: 0.7
+subset_total: 0
+feat_dim: 128
+n_classes: 10
+freeze_encoder_during_head: False
+encoder_ckpt: None
+
+== Round 1/8 ==
+C:\Users\felip\OneDrive\Documentos\GitHub\ActiveSemisupervisedLearningCNN-s\tf_env\Lib\site-packages\torch\utils\data\dataloader.py:668: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
+  warnings.warn(warn_msg)
+[ep 1] L_sup=2.1629  L_uns=0.0000  λ_u=0.25
+[ep 2] L_sup=1.8589  L_uns=1.8223  λ_u=0.50
+[ep 3] L_sup=1.9925  L_uns=0.8885  λ_u=0.75
+[ep 4] L_sup=2.0992  L_uns=0.4243  λ_u=1.00
+[eval] test_acc=0.2074  (round time 73.3s)
+[active] moved 300 from U->L  |  |L|=1300  |U|=58700
+
+== Round 2/8 ==
+[ep 1] L_sup=1.5380  L_uns=0.8979  λ_u=0.25
+[ep 2] L_sup=1.2176  L_uns=0.7208  λ_u=0.50
+[ep 3] L_sup=1.0798  L_uns=0.3981  λ_u=0.75
+[ep 4] L_sup=0.9916  L_uns=0.3287  λ_u=1.00
+[eval] test_acc=0.1995  (round time 52.4s)
+[active] moved 300 from U->L  |  |L|=1600  |U|=58400
+
+== Round 3/8 ==
+[ep 1] L_sup=0.6976  L_uns=0.5010  λ_u=0.25
+[ep 2] L_sup=0.5105  L_uns=0.4757  λ_u=0.50
+[ep 3] L_sup=0.4559  L_uns=0.3445  λ_u=0.75
+[ep 4] L_sup=0.4170  L_uns=0.3307  λ_u=1.00
+[eval] test_acc=0.8036  (round time 51.8s)
+[active] moved 300 from U->L  |  |L|=1900  |U|=58100
+
+== Round 4/8 ==
+[ep 1] L_sup=0.5391  L_uns=0.4163  λ_u=0.25
+[ep 2] L_sup=0.3969  L_uns=0.3978  λ_u=0.50
+[ep 3] L_sup=0.3515  L_uns=0.3598  λ_u=0.75
+[ep 4] L_sup=0.3432  L_uns=0.3147  λ_u=1.00
+[eval] test_acc=0.6470  (round time 55.5s)
+[active] moved 300 from U->L  |  |L|=2200  |U|=57800
+
+== Round 5/8 ==
+[ep 1] L_sup=0.3013  L_uns=0.3405  λ_u=0.25
+[ep 2] L_sup=0.2386  L_uns=0.3226  λ_u=0.50
+[ep 3] L_sup=0.2072  L_uns=0.2774  λ_u=0.75
+[ep 4] L_sup=0.2089  L_uns=0.2305  λ_u=1.00
+[eval] test_acc=0.6490  (round time 59.7s)
+[active] moved 300 from U->L  |  |L|=2500  |U|=57500
+
+== Round 6/8 ==
+[ep 1] L_sup=0.2235  L_uns=0.2892  λ_u=0.25
+[ep 2] L_sup=0.1804  L_uns=0.2519  λ_u=0.50
+[ep 3] L_sup=0.1636  L_uns=0.2243  λ_u=0.75
+[ep 4] L_sup=0.1604  L_uns=0.1938  λ_u=1.00
+[eval] test_acc=0.7118  (round time 60.5s)
+[active] moved 300 from U->L  |  |L|=2800  |U|=57200
+
+== Round 7/8 ==
+[ep 1] L_sup=0.1687  L_uns=0.2214  λ_u=0.25
+[ep 2] L_sup=0.1450  L_uns=0.2068  λ_u=0.50
+[ep 3] L_sup=0.1285  L_uns=0.2119  λ_u=0.75
+[ep 4] L_sup=0.1276  L_uns=0.1839  λ_u=1.00
+[eval] test_acc=0.9206  (round time 64.6s)
+[active] moved 300 from U->L  |  |L|=3100  |U|=56900
+
+== Round 8/8 ==
+[ep 1] L_sup=0.2073  L_uns=0.2559  λ_u=0.25
+[ep 2] L_sup=0.1393  L_uns=0.2140  λ_u=0.50
+[ep 3] L_sup=0.1411  L_uns=0.1702  λ_u=0.75
+[ep 4] L_sup=0.1513  L_uns=0.1847  λ_u=1.00
+[eval] test_acc=0.8159  (round time 98.1s)
+[done] total secs: 703.2
+[
+  {
+    "round": 0,
+    "test_acc": 0.2074,
+    "L": 1300,
+    "U": 58700
+  },
+  {
+    "round": 1,
+    "test_acc": 0.1995,
+    "L": 1600,
+    "U": 58400
+  },
+  {
+    "round": 2,
+    "test_acc": 0.8036,
+    "L": 1900,
+    "U": 58100
+  },
+  {
+    "round": 3,
+    "test_acc": 0.647,
+    "L": 2200,
+    "U": 57800
+  },
+  {
+    "round": 4,
+    "test_acc": 0.649,
+    "L": 2500,
+    "U": 57500
+  },
+  {
+    "round": 5,
+    "test_acc": 0.7118,
+    "L": 2800,
+    "U": 57200
+  },
+  {
+    "round": 6,
+    "test_acc": 0.9206,
+    "L": 3100,
+    "U": 56900
+  },
+  {
+    "round": 7,
+    "test_acc": 0.8159,
+    "L": 3100,
+    "U": 56900
+  }
+]

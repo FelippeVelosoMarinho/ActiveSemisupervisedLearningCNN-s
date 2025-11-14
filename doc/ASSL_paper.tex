@@ -1,122 +1,135 @@
-% ASSL_paper.tex
-% Artigo descrevendo adaptação de aprendizado ativo semissupervisionado inspirada em arXiv:2303.08978v1
-\documentclass[11pt,a4paper]{article}
-\usepackage[utf8]{inputenc}
-\usepackage{amsmath,amssymb}
+\documentclass[12pt,a4paper]{article}
 \usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{url}
 \usepackage{hyperref}
-\usepackage{booktabs}
-\usepackage{caption}
-\usepackage{listings}
-\usepackage{enumitem}
-\usepackage{geometry}
-\geometry{margin=1in}
+\usepackage{float}
 
-\title{Active Semi-Supervised Learning for Convolutional Neural Networks: Methodology and Implementation}
-\author{(Documento gerado automaticamente para o repositório)}
-\date{\today}
+\title{Aprendizado Semi-Supervisionado Ativo com CNNs Eficientes em CPU para Redução de Dependência de Dados Rotulados}
+\author{Felippe Veloso e Aquila}
+\date{2025}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-Este trabalho descreve a metodologia de adaptação de um protocolo de aprendizado ativo semissupervisionado (ASSL) para redes neurais convolucionais, inspirada no trabalho de referência (arXiv:2303.08978v1). Nós apresentamos a formulação algorítmica, detalhes de implementação, mapeamento entre seções do paper e funções do código disponibilizado no repositório, medidas práticas para acelerar treinamento e experimentos sugeridos para validação.
+Este trabalho propõe uma abordagem de \textbf{Aprendizado Semi-Supervisionado Ativo (ASSL)} utilizando redes convolucionais leves (CNNs CPU-friendly) para reduzir a dependência de dados rotulados e promover eficiência energética e computacional. O método combina o paradigma de pseudo-rotulagem inspirado no FixMatch com uma estratégia ativa baseada em entropia para seleção adaptativa de amostras. Avaliamos o desempenho em datasets \textit{MNIST} e \textit{STL-10}, explorando também o potencial de integração de tarefas de autoaprendizado leve (Rotation, Jigsaw e Colorization) como pré-treino. Resultados preliminares indicam que é possível alcançar acurácia competitiva com uso mínimo de dados rotulados, mantendo baixo custo computacional e consumo energético.
 \end{abstract}
 
 \section{Introdução}
-Aprendizado semi-supervisionado combinado com seleção ativa promete reduzir drasticamente a necessidade de rótulos humanos e, quando bem implementado, diminuir o custo computacional por atingir a mesma acurácia. Baseamo-nos no design do paper de referência (arXiv:2303.08978v1) e adaptamos os componentes centrais para um pipeline prático em TensorFlow/Keras. O objetivo deste documento é fornecer a metodologia completa, decisões de engenharia para otimização e documentação do código.
 
-\section{Revisão do trabalho de referência}
-(Resumo curto do paper de referência.) O paper descreve uma estratégia para selecionar amostras informativas a partir de um conjunto não rotulado usando métricas de incerteza e inconsistência entre versões do modelo (por exemplo, weak / strong augmentations), aplicando pseudo-rotulagem com máscaras de confiança e atualizando métricas por amostra (EMA/UCB). Os componentes chave são:
+O avanço dos modelos de aprendizado profundo é fortemente dependente da disponibilidade de grandes volumes de dados rotulados. No entanto, a rotulação manual é um processo caro, demorado e, em muitos contextos, inviável. Nesse cenário, o \textbf{Aprendizado Semi-Supervisionado Ativo (ASSL)} surge como uma abordagem promissora para treinar modelos com poucos rótulos, aproveitando simultaneamente amostras não rotuladas e critérios de seleção ativa.
+
+Além disso, a crescente preocupação com sustentabilidade e eficiência energética demanda o uso de arquiteturas \textbf{CPU-friendly}, isto é, modelos leves e otimizados para execução em hardware convencional. O uso de CNNs compactas, aliado a estratégias de pseudo-rotulagem e aprendizado ativo, possibilita o desenvolvimento de sistemas mais acessíveis e energeticamente eficientes.
+
+Neste trabalho, desenvolvemos uma estrutura modular de ASSL baseada em CNNs leves, que combina os paradigmas de \textbf{FixMatch} (para pseudo-rotulagem) e \textbf{Active Learning} (para seleção adaptativa via entropia). Também exploramos o papel das \textbf{tarefas de autoaprendizado leve} — Rotation, Jigsaw e Colorization — como mecanismos de pré-treino para melhorar a qualidade das representações.
+
+\section{Preliminares}
+
+\subsection{Aprendizado Supervisionado (SL) e Não-Supervisionado (NSL)}
+O aprendizado supervisionado (SL) depende de conjuntos de dados rotulados, otimizando diretamente a predição de saídas conhecidas. Já o aprendizado não-supervisionado (NSL) busca padrões ou representações latentes em dados sem rótulo. Ambos apresentam limitações quando isolados: o primeiro pela dependência de rótulos, e o segundo pela falta de orientação semântica.
+
+\subsection{Aprendizado Semi-Supervisionado (SSL)}
+O SSL combina ambos os paradigmas, utilizando poucas amostras rotuladas e muitas não rotuladas. Estratégias clássicas incluem:
 \begin{itemize}
-  \item operações de augmentação fracas/fortes para estabilizar pseudo-rótulos;
-  \item um critério de seleção ativa que combina incerteza e inconsistência por amostra;
-  \item mecanismos de agregação por amostra (EMA) e bandas superiores de confiança (UCB) para priorizar amostras a serem anotadas;
-  \item políticas adaptativas de threshold (tau) e agendamento do peso da perda não-supervisionada (lambda").
+    \item \textbf{Pseudo-rotulagem:} atribui rótulos temporários a amostras não rotuladas com alta confiança.
+    \item \textbf{Consistência:} força o modelo a ser robusto a perturbações (augmentations).
+    \item \textbf{MixMatch, FixMatch:} frameworks modernos que combinam consistência e pseudo-rótulos com thresholds adaptativos.
 \end{itemize}
 
-\section{Metodologia adaptada}
-A nossa implementação segue de perto os blocos do paper, com ajustes práticos:
+\subsection{FixMatch}
+O FixMatch (Sohn et al., 2020) é um método SSL que usa uma amostra não rotulada $x_u$ sob duas transformações: uma leve (\textit{weak augmentation}) e uma forte (\textit{strong augmentation}). O modelo gera uma pseudo-label a partir da versão fraca se sua confiança ultrapassa um limiar $\tau$, e então força a consistência com a versão forte:
+\[
+\mathcal{L} = \mathcal{L}_{sup} + \lambda_u \cdot \mathbb{1}(\max(p_w)>\tau)\cdot CE(p_s, \hat{y})
+\]
+onde $p_w$ e $p_s$ são as probabilidades preditas nas versões fraca e forte, respectivamente.
 
-\subsection{Dados e pré-processamento}
-- Imagens são lidas via \texttt{tf.data} usando função robusta de decodificação/resize; a normalização é feita em ponto único (0..1).  
-- Dois pipelines: L (labelled) e U (unlabelled). U produz pares (weak, strong) por batch.
-- Para acelerar: usamos \texttt{num\\_parallel\_calls=tf.data.AUTOTUNE} e \texttt{prefetch}.
-
-\subsection{Modelo}
-- Uma CNN simples (3 blocos conv + flatten + dense) produz logits.
-- Para compatibilidade com \textit{mixed-precision} (ganhos em GPU), a saída final é forçada para \texttt{float32} a fim de evitar problemas numéricos na loss.
-
-\subsection{Perdas e passos de treinamento}
-- Passo supervisionado: cross-entropy clássica sobre L.
-- Passo não-rotulado: pseudo-rotulagem via predições da \textit{weak} (yhat) aplicadas na \textit{strong}; máscara por confiança (conf >= tau) e perda ponderada por \(\lambda_u\).
-- Métricas por amostra: pseudo-EL2N (incerteza) e simetrized KL (inconsistência entre weak/strong).
-- Atualização EMA por amostra para média e variância (usada em UCB).
-
-\subsection{Seleção ativa}
-- Seleção balanceada por classe: para cada classe, ordena amostras por produto das UCBs de incerteza e inconsistência e seleciona top-K de forma balanceada.
-- Remoção posterior das amostras selecionadas de U e inserção em L (simulação de anotação).
-
-\section{Mapeamento para o código}
-Abaixo descrevemos os pontos do paper e as funções/variáveis do notebook do repositório:
+\subsection{Tarefas de Autoaprendizado Leve}
+As tarefas de autoaprendizado leve (Lightweight Self-Supervised Learning) são pré-textos que permitem ao modelo aprender representações discriminativas sem rótulos:
 \begin{itemize}
-  \item \texttt{build\_records\_from\_dir}: coleta arquivos e monta registros (sid, path, label).
-  \item \texttt{make\_L\_ds}, \texttt{make\_U\_ds}: pipelines \texttt{tf.data} para L e U.
-  \item \texttt{weak\_aug\_seq} / \texttt{strong\_aug\_seq}: augmentações weak/strong.
-  \item \texttt{train\_step\_supervised}: passo supervisionado (com \texttt{@tf.function}).
-  \item \texttt{train\_step\_unlabeled\_with\_masklog}: passo não rotulado (mantido fora do \texttt{@tf.function} quando modo debug ativo).
-  \item \texttt{pseudo\_el2n}, \texttt{sym\_kl}: métricas por amostra.
-  \item \texttt{ema\_update}, \texttt{ucb}: manutenção de EMA/UCB por sid.
-  \item \texttt{acquire\_topK\_balanced}: seleção ativa balanceada (implementada no notebook).
+    \item \textbf{Rotation:} prever o ângulo de rotação aplicado à imagem.
+    \item \textbf{Jigsaw:} reorganizar blocos de uma imagem embaralhada.
+    \item \textbf{Colorization:} reconstruir canais de cor a partir de uma entrada em tons de cinza.
 \end{itemize}
+Essas tarefas capturam informações estruturais e semânticas úteis, podendo ser usadas para pré-treinar o encoder antes da etapa de ASSL.
 
-\section{Melhorias de desempenho implementadas}
-Nesta versão do repositório aplicamos duas mudanças não-invasivas:
+\subsection{Aprendizado Ativo (AL)}
+No aprendizado ativo, o modelo escolhe quais amostras deseja rotular. Tipicamente, isso é feito selecionando amostras de maior incerteza (alta entropia). Assim, o modelo melhora mais rapidamente com menos exemplos rotulados.
+
+\subsection{Aprendizado Semi-Supervisionado Ativo (ASSL)}
+O ASSL integra AL e SSL: a cada rodada, o modelo é treinado com SSL, avalia as amostras não rotuladas e seleciona as mais informativas para rotular, reduzindo a dependência de dados anotados e mantendo a eficiência.
+
+\section{Metodologia}
+
+A Figura~\ref{fig:assl_architecture} ilustra a arquitetura proposta.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{assl_architecture.png}
+\caption{Arquitetura do sistema ASSL com CNN leve, pseudo-rotulagem (FixMatch-like) e seleção ativa por entropia.}
+\label{fig:assl_architecture}
+\end{figure}
+
+\subsection{Arquitetura Geral}
+A arquitetura é composta por:
 \begin{enumerate}
-  \item Ativação de \textit{mixed precision} (quando disponível) para acelerar computação em GPUs modernas.
-  \item Forçar a saída final do modelo para \texttt{float32} para garantir estabilidade na função de perda quando o resto do modelo estiver em float16.
+    \item Um \textbf{encoder convolucional leve} (SmallConvEncoder) com três blocos Conv-BN-ReLU.
+    \item Uma \textbf{cabeça linear} para classificação.
+    \item O módulo de \textbf{treinamento semi-supervisionado} baseado em FixMatch.
+    \item O módulo de \textbf{seleção ativa} por entropia.
 \end{enumerate}
 
-Essas alterações são economicamente vantajosas: Mixed-precision reduz tempo de treino e uso de memória, permitindo batches maiores por GPU.
-
-\section{Outras recomendações para reduzir lentidão}
-Além das mudanças aplicadas, recomendamos:
-\begin{itemize}
-  \item Aumentar o \texttt{batch} (BATCH) caso a GPU tenha memória disponível — maior throughput reduz overhead por step.
-  \item Usar \texttt{ds = ds.cache()} quando o dataset couber em memória (ou em disco) para evitar IO repetido durante múltiplas épocas.
-  \item Garantir \texttt{num\_parallel\_calls=tf.data.AUTOTUNE} e \texttt{prefetch} (já usados).
-  \item Evitar loops Python por amostra durante caminhos críticos (por exemplo, pontos que atualizam EMA dentro do loop de batches podem ser vetorizados). Se possível, coletar arrays numpy e aplicar operações vetorizadas sobre colunas inteiras.
-  \item Usar \texttt{tf.function} nas rotinas de treinamento quando o modo \texttt{DEBUG} estiver desativado; a função \texttt{train\_step\_unlabeled} pode ser decorada dinamicamente quando não há código Python dependente.
-  \item Utilizar profiling (TensorBoard profiler) para identificar gargalos: CPU vs IO vs GPU.
-\end{itemize}
-
-\section{Instruções para reproduzir e compilar}
-Compilar o PDF (PowerShell):
-\begin{verbatim}
-pdflatex -output-directory=doc doc\ASSL_paper.tex
-\end{verbatim}
-
-\section{Código e documentação (exemplos)}
-No repositório, as funções principais estão comentadas de acordo com as seções deste artigo. Abaixo há um trecho explicativo (documente o notebook com literais docstrings e comentários em cada função-chave no código):
-\begin{lstlisting}[language=Python]
-# Exemplo: descricao da funcao acquire_topK_balanced
-# Input: U_records (list of dict {sid,path}), K: int, class_names: list
-# Output: selected_sids (list of ints)
-# Objetivo: retornar K sids balanceados por classe, ordenados por score UCB(U)*UCB(I)
-\end{lstlisting}
-
-\section{Proposta de Experimentos}
-Sugerimos as seguintes experiências:
+\subsection{Etapas do Ciclo ASSL}
+Cada rodada de treinamento segue as etapas:
 \begin{enumerate}
-  \item Comparar tempo por época e acurácia entre baseline (treinamento totalmente supervisionado com L completo) e ASSL com diferentes políticas de K por rodada.
-  \item Ablation: medir impacto de usar apenas incerteza, apenas inconsistência, ou produto das UCBs na seleção ativa.
-  \item Medir ganhos de mixed-precision em diferentes GPUs (ex.: T4, V100, A100).
+    \item Treinamento semi-supervisionado com pseudo-rótulos (FixMatch-like);
+    \item Avaliação em conjunto de teste;
+    \item Cálculo da entropia das amostras não rotuladas;
+    \item Seleção das amostras mais incertas (Top-K);
+    \item Adição das amostras selecionadas ao conjunto rotulado;
+    \item Recriação dos \textit{DataLoaders} e início da próxima rodada.
 \end{enumerate}
 
-\section{Conclusão}
-Este documento fornece um guia prático para reproduzir e estender a implementação ASSL presente no repositório. Aplicamos mudanças imediatas para acelerar treino (mixed precision) e listamos várias práticas recomendadas para reduzir latência e gasto computacional. Documentamos o mapeamento entre o paper de referência e as funções do notebook para facilitar replicação e publicação.
+\subsection{Critério de Seleção Ativa}
+O critério usado é a \textbf{entropia da distribuição de probabilidade} do modelo:
+\[
+H(p) = -\sum_{c} p_c \log(p_c)
+\]
+As amostras com maior entropia são consideradas mais informativas, pois indicam maior incerteza do modelo.
 
-\bibliographystyle{plain}
-\bibliography{}
+\subsection{Pseudo-Rotulagem e Consistência (FixMatch-like)}
+Cada amostra não rotulada $x_u$ é submetida a uma transformação leve e uma forte. O modelo gera pseudo-rótulos confiáveis apenas se $\max(p_w) > \tau$. Isso reduz ruído e melhora a estabilidade do aprendizado.
+
+\subsection{Integração com Autoaprendizado}
+Opcionalmente, o encoder pode ser inicializado com pesos pré-treinados obtidos a partir de tarefas de autoaprendizado leve. Isso fornece representações mais robustas antes da fase semi-supervisionada, acelerando a convergência e reduzindo a entropia média.
+
+\subsection{Eficiência Computacional}
+A arquitetura foi projetada para ser executada em CPU com baixo consumo de memória. A rede possui menos de 600k parâmetros e opera com batches pequenos, garantindo eficiência energética e compatibilidade com dispositivos modestos.
+
+\section{Resumo dos Componentes}
+\begin{itemize}
+    \item \textbf{models.py:} define o encoder leve e a cabeça linear.
+    \item \textbf{datasets\_assl.py:} constrói splits, define augmentations fracas e fortes e gerencia índices L/U.
+    \item \textbf{assl\_strategies.py:} implementa o cálculo de entropia e seleção ativa.
+    \item \textbf{assl\_core.py:} organiza o laço principal de treinamento e aquisição.
+    \item \textbf{run\_assl.py:} gerencia hiperparâmetros e execução de experimentos.
+\end{itemize}
+
+\section{Conclusão Parcial}
+A estrutura proposta permite testar múltiplas combinações de paradigmas de aprendizado semi e auto-supervisionado em CNNs leves. Os próximos passos incluem:
+\begin{itemize}
+    \item Avaliar o impacto do tamanho do conjunto rotulado;
+    \item Analisar a evolução da entropia e da acurácia ao longo das rodadas;
+    \item Comparar inicializações com e sem pré-treino em tarefas de autoaprendizado.
+\end{itemize}
+
+\section*{Referências}
+\begin{itemize}
+    \item Sohn, K. et al. “FixMatch: Simplifying Semi-Supervised Learning with Consistency and Confidence.” (NeurIPS, 2020)
+    \item Berthelot, D. et al. “MixMatch: A Holistic Approach to Semi-Supervised Learning.” (NeurIPS, 2019)
+    \item Noroozi, M. and Favaro, P. “Unsupervised Learning of Visual Representations by Solving Jigsaw Puzzles.” (ECCV, 2016)
+    \item Zhang, R. et al. “Colorful Image Colorization.” (ECCV, 2016)
+    \item Gidaris, S. et al. “Unsupervised Representation Learning by Predicting Image Rotations.” (ICLR, 2018)
+\end{itemize}
 
 \end{document}

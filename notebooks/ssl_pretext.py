@@ -279,6 +279,12 @@ def main():
     ap.add_argument("--subset", type=int, default=0, help="usa N amostras p/ teste rápido (0=all)")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    
+    ap.add_argument("--save-encoder", action="store_true",
+                    help="Se setado, salva o encoder treinado para uso no ASSL")
+    ap.add_argument("--encoder-out", type=str, default=None,
+                    help="Caminho do arquivo .pt para salvar o encoder (state_dict)")
+    
     args = ap.parse_args()
 
     set_seed(args.seed); device = torch.device(args.device)
@@ -330,5 +336,21 @@ def main():
 
     te_loss, te_acc = eval_linear_probe(encoder, clf, te_loader, device)
     print(f"[final] test_acc: {te_acc:.4f}")
+    
+    # >>> NOVO: salvar encoder para uso no ASSL <<<
+    if args.save_encoder:
+        import os
+        ckpt_dir = "./checkpoints"
+        os.makedirs(ckpt_dir, exist_ok=True)
+        if args.encoder_out is not None:
+            out_path = args.encoder_out
+        else:
+            out_path = os.path.join(
+                ckpt_dir,
+                f"encoder_{args.dataset}_{args.task}_img{args.img_size}.pt"
+            )
+        torch.save(encoder.state_dict(), out_path)
+        print(f"[ckpt] encoder salvo em: {out_path}")
+
 
 if __name__ == "__main__": main()

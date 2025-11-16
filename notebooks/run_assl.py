@@ -33,9 +33,21 @@ def main():
     ap.add_argument("--batch-u", type=int, default=128)            # U batch size
     ap.add_argument("--batch-t", type=int, default=256)            # Test batch size
     ap.add_argument("--prefetch-factor", type=int, default=2)      # ignorado se workers==0
+    
+    ap.add_argument("--pretext-task", choices=["rotation","jigsaw","colorization","none"],
+                    default="none", help="Tarefa de autoaprendizado usada em conjunto com ASSL")
+    ap.add_argument("--lambda-pretext", type=float, default=0.5,
+                    help="Peso da loss de pré-texto na loss total")
 
     args = ap.parse_args()
     set_seed(args.seed)
+    
+    # >>> Ajustes antes de criar cfg <<<
+    if args.no_pin_memory:
+        args.pin_memory = False
+    # Em CPU/Windows, workers=0 é mais seguro; se quiser forçar:
+    if args.device == "cpu" and args.num_workers < 0:
+        args.num_workers = 0
 
     cfg = ASSLConfig(
         dataset=args.dataset,
@@ -62,6 +74,8 @@ def main():
         batch_u=args.batch_u,
         batch_t=args.batch_t,
         prefetch_factor=args.prefetch_factor,
+        pretext_task=(None if args.pretext_task == "none" else args.pretext_task),
+        lambda_pretext=args.lambda_pretext,
     )
     
     if args.no_pin_memory:

@@ -1,6 +1,7 @@
 data/test/MILK10k_Test_Input/
 data/train/MILK10k_Training_Input/
 notebooks/data
+notebooks/results_stl10
 *.jpg
 *.csv
 *.zip
